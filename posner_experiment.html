@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Posner Experiment</title>
+    <!-- 引入 jsPsych 库 -->
+    <script src="https://unpkg.com/jspsych@7.3.4"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@1.1.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.3"></script>
+    <!-- 引入用于生成 Excel 文件的库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <style>
+        /* 基础 Flexbox 布局样式 */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        /* jsPsych 目标容器的样式 */
+        #jspsych-target {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 800px; /* 最大宽度限制 */
+            height: 100%;
+            position: relative;
+            padding: 20px;
+            box-sizing: border-box;
+            background: #fff; /* 白色背景 */
+            border-radius: 8px; /* 圆角边框 */
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); /* 阴影效果 */
+        }
+        /* 方块和提示框的样式 */
+        .square, .cue-box {
+            width: 60px; /* 统一大小 */
+            height: 60px; /* 统一大小 */
+            position: absolute;
+            top: calc(50% - 30px); /* 垂直居中 */
+        }
+        .square {
+            background-color: blue;
+        }
+        .cue-box {
+            border: 5px solid blue;
+        }
+        .fixation {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px;
+            color: black;
+        }
+        .left {
+            left: calc(50% - 200px); /* 左侧定位 */
+        }
+        .right {
+            left: calc(50% + 140px); /* 右侧定位 */
+        }
+        /* 响应式设计调整 */
+        @media (max-width: 600px) {
+            .square, .cue-box {
+                width: 40px; /* 小屏幕下的尺寸调整 */
+                height: 40px; /* 小屏幕下的尺寸调整 */
+            }
+            .left, .right {
+                left: 50%; /* 小屏幕下居中对齐 */
+                transform: translateX(-50%); /* 小屏幕下居中对齐 */
+            }
+        }
+        /* 参与者信息表单样式 */
+        #participant-info-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        #participant-info-form label {
+            margin-bottom: 5px;
+        }
+        #submit-info {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #submit-info:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="jspsych-target"></div>
+    <script>
+        /* 将数据保存为 Excel 文件的函数 */
+        function saveDataAsExcel(filename, data) {
+            // 将数据转换为工作表
+            var ws = XLSX.utils.json_to_sheet(data);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Experiment Data');
+            XLSX.writeFile(wb, filename);
+        }
+
+        /* 初始化 jsPsych */
+        var jsPsych = initJsPsych({
+            on_finish: function() {
+                // 获取实验数据并准备导出为 Excel
+                var data = jsPsych.data.get().values();
+                // 过滤出相关列
+                var formattedData = data.map(function(d) {
+                    return {
+                        trial: d.trial_index,
+                        task: d.task,
+                        response: d.response,
+                        correct: d.correct,
+                        rt: d.rt,
+                        accuracy: d.correct ? 1 : 0 // 将正确性表示为 1 或 0
+                    };
+                });
+
+                // 将数据保存为 Excel 文件
+                saveDataAsExcel('experiment_data.xlsx', formattedData);
+            },
+            display_element: 'jspsych-target'
+        });
+
+        /* 创建时间线 */
+        var timeline = [];
+
+        /* 预加载图像 */
+        var preload = {
+            type: jsPsychPreload,
+            images: []
+        };
+        timeline.push(preload);
+
+        /* 定义参与者信息表单 */
+        var participant_info = {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: `
+                <p>请输入以下信息：</p>
+                <form id="participant-info-form">
+                    <label for="id">参与者 ID: </label><input name="id" type="text" required><br>
+                    <label for="age">年龄: </label><input name="age" type="number" required><br>
+                    <label for="hand">利手（"1" : 左利手, "2" : 右利手）: </label><input name="hand" type="text" required><br>
+                    <button type="button" id="submit-info">提交</button>
+                </form>
+                <p>按【提交】继续实验。</p>
+            `,
+            choices: "NO_KEYS",
+            on_load: function() {
+                document.getElementById('submit-info').addEventListener('click', function() {
+                    var form = document.getElementById('participant-info-form');
+                    var formData = new FormData(form);
+                    var responses = {};
+                    formData.forEach(function(value, key) {
+                        responses[key] = value;
+                    });
+                    jsPsych.data.addProperties(responses);
+
+                    /* 定义后续的实验时间线 */
+                    var experiment_timeline = [
+                        /* 定义欢迎消息试验 */
+                        {
+                            type: jsPsychHtmlKeyboardResponse,
+                            stimulus: "欢迎参加 Posner 实验。按任意键开始。"
+                        },
+                        /* 定义说明试验 */
+                        {
+                            type: jsPsychHtmlKeyboardResponse,
+                            stimulus: `
+                                <p>在本实验中，您需要将注意力保持在黑色的固定十字（+）上。</p>
+                                <p>然后，会出现一个蓝色方块或黑色闪光图形，指示目标可能出现的位置。</p>
+                                <p>如果蓝色方块轮廓出现在左侧，目标更可能出现在左侧，如果出现在右侧，目标更可能出现在右侧。</p>
+                                <p>如果出现黑色闪光，目标在任一侧出现的可能性相等。</p>
+                                <p><strong style="background-color: #ffff00; padding: 0 5px;">目标是一个蓝色方块。</strong></p>
+                                <p>您的任务是：</p>
+                                <p>在目标（蓝色方块）出现在左侧时，按【F】键。</p>
+                                <p>在目标（蓝色方块）出现在右侧时，按【J】键，请尽快并尽可能准确地作答。</p>
+                                <p>如果明白上述任务要求，请按任意键开始实验。</p>
+                            `,
+                            post_trial_gap: 2000
+                        },
+                        /* 定义固定点试验 */
+                        {
+                            type: jsPsychHtmlKeyboardResponse,
+                            stimulus: '<div class="fixation">+</div>',
+                            choices: "NO_KEYS",
+                            trial_duration: 1000,
+                            data: { task: 'fixation' }
+                        },
+                        /* 定义提示试验 */
+                        {
+                            type: jsPsychHtmlKeyboardResponse,
+                            stimulus: function() {
+                                var cue_type = jsPsych.timelineVariable('cue_type');
+                                var fixation_html = cue_type === 'neutral_flash' ? '' : '<div class="fixation">+</div>';
+                                return fixation_html + 
+                                    (cue_type === 'left_box' ? '<div class="cue-box left"></div>' : 
+                                    cue_type === 'right_box' ? '<div class="cue-box right"></div>' : 
+                                    cue_type === 'neutral_arrow' ? '<div style="font-size:60px;">+</div>' : 
+                                    cue_type === 'flash' ? '<div class="cue-box left"></div>' : 
+                                    '<div style="font-size:60px; color: #000000;">*</div>');
+                            },
+                            choices: "NO_KEYS",
+                            trial_duration: 300,
+                            data: { task: 'cue' }
+                        },
+                        /* 定义测试试验 */
+                        {
+                            type: jsPsychHtmlKeyboardResponse,
+                            stimulus: function() {
+                                var target_position = jsPsych.timelineVariable('target_position');
+                                return '<div class="fixation">+</div>' +
+                                    `<div class="square ${target_position === 'left' ? 'left' : 'right'}"></div>`;
+                            },
+                            choices: ['f', 'j'],
+                            data: {
+                                task: 'response',
+                                correct_response: jsPsych.timelineVariable('correct_response')
+                            },
+                            on_finish: function(data){
+                                data.correct = jsPsych.pluginAPI.compareKeys(data.response, data.correct_response);
+                            }
+                        },
+                        /* 定义测试程序 */
+                        {
+                            timeline: [
+                                /* 定义固定点试验 */
+                                {
+                                    type: jsPsychHtmlKeyboardResponse,
+                                    stimulus: '<div class="fixation">+</div>',
+                                    choices: "NO_KEYS",
+                                    trial_duration: 1000,
+                                    data: { task: 'fixation' }
+                                },
+                                /* 定义提示试验 */
+                                {
+                                    type: jsPsychHtmlKeyboardResponse,
+                                    stimulus: function() {
+                                        var cue_type = jsPsych.timelineVariable('cue_type');
+                                        var fixation_html = cue_type === 'neutral_flash' ? '' : '<div class="fixation">+</div>';
+                                        return fixation_html + 
+                                            (cue_type === 'left_box' ? '<div class="cue-box left"></div>' : 
+                                            cue_type === 'right_box' ? '<div class="cue-box right"></div>' : 
+                                            cue_type === 'neutral_arrow' ? '<div style="font-size:60px;">+</div>' : 
+                                            cue_type === 'flash' ? '<div class="cue-box left"></div>' : 
+                                            '<div style="font-size:60px; color: #000000;">*</div>');
+                                    },
+                                    choices: "NO_KEYS",
+                                    trial_duration: 300,
+                                    data: { task: 'cue' }
+                                },
+                                /* 定义测试试验 */
+                                {
+                                    type: jsPsychHtmlKeyboardResponse,
+                                    stimulus: function() {
+                                        var target_position = jsPsych.timelineVariable('target_position');
+                                        return '<div class="fixation">+</div>' +
+                                            `<div class="square ${target_position === 'left' ? 'left' : 'right'}"></div>`;
+                                    },
+                                    choices: ['f', 'j'],
+                                    data: {
+                                        task: 'response',
+                                        correct_response: jsPsych.timelineVariable('correct_response')
+                                    },
+                                    on_finish: function(data){
+                                        data.correct = jsPsych.pluginAPI.compareKeys(data.response, data.correct_response);
+                                    }
+                                }
+                            ],
+                            timeline_variables: [
+                                // 内源性提示
+                                { cue_type: 'left_box', target_position: 'left', correct_response: 'f' },
+                                { cue_type: 'left_box', target_position: 'right', correct_response: 'j' },
+                                { cue_type: 'right_box', target_position: 'left', correct_response: 'f' },
+                                { cue_type: 'right_box', target_position: 'right', correct_response: 'j' },
+                                { cue_type: 'neutral_arrow', target_position: 'left', correct_response: 'f' },
+                                { cue_type: 'neutral_arrow', target_position: 'right', correct_response: 'j' },
+                                // 外源性提示
+                                { cue_type: 'flash', target_position: 'left', correct_response: 'f' },
+                                { cue_type: 'flash', target_position: 'right', correct_response: 'j' },
+                                { cue_type: 'neutral_flash', target_position: 'left', correct_response: 'f' },
+                                { cue_type: 'neutral_flash', target_position: 'right', correct_response: 'j' }
+                            ],
+                            repetitions: 5,
+                            randomize_order: true
+                        },
+                        /* 定义实验结果反馈 */
+                        {
+                            type: jsPsychHtmlKeyboardResponse,
+                            stimulus: function() {
+                                var trials = jsPsych.data.get().filter({task: 'response'});
+                                var correct_trials = trials.filter({correct: true});
+                                var accuracy = Math.round(correct_trials.count() / trials.count() * 100);
+                                var rt = Math.round(correct_trials.select('rt').mean());
+
+                                return `<p>您的正确率是 ${accuracy}%。</p>
+                                        <p>您的平均反应时间是 ${rt} 毫秒。</p>
+                                        <p>按任意键结束实验。谢谢！</p>`;
+                            }
+                        }
+                    ];
+
+                    /* 开始实验 */
+                    jsPsych.run(experiment_timeline);
+                });
+            }
+        };
+        timeline.push(participant_info);
+
+        /* 开始参与者信息收集 */
+        jsPsych.run(timeline);
+    </script>
+</body>
+</html>
