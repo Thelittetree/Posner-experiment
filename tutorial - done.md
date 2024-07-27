@@ -150,9 +150,9 @@ Posner 实验是一种常用于研究注意力的心理学实验，旨在探讨�
 </style>
 ```
 
-### 2.2 初始化 jsPsych 和实验时间线
+### 2.2 初始化 jsPsych 
 
-在 `<script>` 标签中，我们初始化 `jsPsych` 并定义实验时间线。包括参与者信息收集、实验任务和数据保存：
+使用 initJsPsych 初始化 jsPsych 并在实验结束时调用 saveDataAsExcel 函数保存数据。
 
 ```html
 <script>
@@ -182,18 +182,32 @@ Posner 实验是一种常用于研究注意力的心理学实验，旨在探讨�
         },
         display_element: 'jspsych-target'
     });
+```
 
-    /* 创建时间线 */
+### 2.3 创建时间线
+
+创建一个时间线数组 `timeline`，用于存储实验的各个步骤。
+
+```javascript
     var timeline = [];
+```
+### 2.4 预加载图像 
 
-    /* 预加载图像 */
+预加载实验中需要使用的图像。
+
+```javascript
     var preload = {
         type: jsPsychPreload,
         images: []
     };
     timeline.push(preload);
+```
 
-    /* 定义参与者信息表单 */
+### 2.5 参与者信息表单
+
+定义一个表单用于收集参与者的信息，包括参与者 ID、年龄和利手。
+
+```javascript
     var participant_info = {
         type: jsPsychHtmlKeyboardResponse,
         stimulus: `
@@ -286,8 +300,13 @@ Posner 实验是一种常用于研究注意力的心理学实验，旨在探讨�
         }
     };
     timeline.push(participant_info);
+```
 
-    /* 添加时间线中的实验任务 */
+### 2.6 实验任务
+
+定义实验任务，包括固定点试验、提示试验和目标试验。
+
+```javascript
     var trial = {
         timeline: [
             {
@@ -330,8 +349,13 @@ Posner 实验是一种常用于研究注意力的心理学实验，旨在探讨�
         randomize_order: true
     };
     timeline.push(trial);
+```
 
-    /* 启动实验 */
+### 2.7 启动实验
+
+最后，启动实验
+
+```javascript
     jsPsych.init({
         timeline: timeline,
         display_element: 'jspsych-target'
@@ -359,4 +383,5 @@ Posner 实验是一种常用于研究注意力的心理学实验，旨在探讨�
 - [XLSX.js 文档](https://github.com/SheetJS/sheetjs)
 - [Posner 实验简介](https://en.wikipedia.org/wiki/Posner_cueing_task)
 - [Flexbox 布局教程](https://css-tricks.com/snippets/css/a-guide-to-flexbox/)
-```
+
+---

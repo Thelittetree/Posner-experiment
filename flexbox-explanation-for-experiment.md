@@ -1,6 +1,4 @@
-以下是对上述代码中涉及到 Flexbox 布局的部分的单独分析和解释，已格式化为 Markdown 文件。
-
-```markdown
+以下是对上述代码中涉及到 Flexbox 布局的部分的单独分析和解释。
 # Flexbox 布局分析
 
 在本实验的 HTML 文件中，使用了 Flexbox 布局来管理页面元素。下面是对 Flexbox 布局部分的详细分析。
